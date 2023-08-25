@@ -10,6 +10,22 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken')
 const GENERATOR = require('./coupon')
 const mailer = require('nodemailer');
+const multer = require('multer');
+const fs = require('fs');
+const Admin = require('./admin');
+const COUPON = require('./coupon');
+
+const storage = multer.diskStorage({
+    destination: function (request, file, cb) {
+      cb(null, 'uploads/') // Where to store the uploaded files
+    },
+    filename: function (request, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+      cb(null, file.fieldname + '-' + uniqueSuffix + '.jpg') // Change the filename as needed
+    }
+  });
+  
+  const upload = multer({ storage: storage });
 
 const MailTransporter = mailer.createTransport({
     host: 'mail.weeyba.com', // Replace with your mail server's SMTP host
@@ -228,10 +244,6 @@ App.post('/profile', async (request, response, next) => {
 });
 
 
-App.get('/coupon', (request, response) => {
-    response.sendFile(__dirname + '/coupon.html')
-})
-
 App.get('/admin', (request, response) => {
     response.sendFile(__dirname + '/admin.html')
 })
@@ -295,7 +307,7 @@ App.post('/token-sent', FUNCTIONS.generatePassToken, (request, response) => {
         response.sendFile(__dirname + '/verification.html')
     })
 })
-
+App.get('/reset_password', (request, response) => {response.sendFile(__dirname + '/reset.html')})
 App.post('/updateForm', (request, response) => {
     let ReceivedToken = request.body.token;
     let codeQuery = 'SELECT * FROM verify WHERE token = ?'
@@ -303,7 +315,7 @@ App.post('/updateForm', (request, response) => {
         if (SelectErr) throw SelectErr;
         if (SelectResult.length > 0) {
             console.log(SelectResult[0])
-            response.json({ result: SelectResult[0]})
+            response.json({ message: 'Token Match', result: SelectResult[0]})
         }
         else {
             console.log('INCORRECT VERIFICATION CODE')
@@ -467,8 +479,85 @@ App.get('/get-all-affiliate-withdraw', (request, response) => {
         response.json({ user: result });
     })
 })
+
+App.get('/get_comment', (request, response) => {
+    response.sendFile(__dirname + '/comment.html');
+})
+
+App.post('/upload', upload.single('image'), (request, response) => {
+    const { originalname, filename, size } = request.file;
+    const username = request.body.username;
+    const linktext = request.body.comment;
+
+  
+    const sql = 'INSERT INTO uploaded_files (username, originalname, filename, size, linktext) VALUES (?, ?, ?, ?, ?)';
+    const values = [username, originalname, __dirname + '/uploads/' + filename, size, linktext];
+  
+    connection.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('Error saving file info to database:', err);
+        response.status(500).send('Error uploading file');
+        return;
+      }
+      console.log('File info saved to database:', result);
+      response.json({ message:' Comment uploaded', ReceivedResult: result})
+    });
+  });
+  
+  App.get('/get_posts', (request, response) => {
+    const postQuery = 'SELECT * FROM uploaded_files';
+    connection.query(postQuery, (err, result) => {
+        if (err) throw err;
+        if (result.length > 0) {
+            console.log(result)
+            response.json({ message: 'All Posts Activity', results: result})
+        }
+    })
+  })
+
+  App.get('/deletes', (request, response, next) => {
+    const deleteQuery = ['DELETE FROM uploaded_files', 'DELETE FROM withdrawal', 'DELETE FROM affiliatewithdrawal']
+   deleteQuery.forEach((query) => {
+    connection.query(query, (err) => {
+        if (err) {
+            console.log('Error deleting data');
+            throw err;
+        }
+        else {
+            console.log('Data deleted from tables')
+        }
+        
+    })
+   })
+    next()
+  }, 
+  (request, response) => {
+    const folderPath = path.join(__dirname, 'uploads');
+    fs.readdir(folderPath, (err, files) => {
+        if (err) {
+            console.log('Error reading directory')
+            throw err;
+        }
+        if (files.length === 0) {
+            console.log('No data files to be deleted')
+        }
+
+        files.forEach((file) => {
+            const filePath = path.join(folderPath, file)
+            fs.unlink(filePath, (unlinkErr) => {
+                if (unlinkErr) {
+                    console.log('Error deleting files')
+                    throw err;
+                }
+                else {
+                    console.log('Data deleted succesfully', filePath)
+                }
+            })
+        })
+        response.json({ message: 'Files Deleted succesfully'})
+    })
+  })
+
 App.listen(5000, () => {
     console.log('App is starting at localhost: 5000')
 })
-
-module.exports = connection;
