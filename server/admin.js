@@ -38,9 +38,9 @@ const Admin = {
 
 
 
-Admin.getTotalUsers('totalUsers', 'userdata', 'users')
+
 Admin.getTotalUsers('totalCoupons', 'coupons', 'coupon');
 Admin.getSum('ActivityBalance', 'Activity Balance', 'userdata');
 Admin.getSum('AffiliateBalance', 'Affiliate Balance', 'userdata')
-Admin.ActivityBalance('Prozymax901')
 
+module.exports = Admin;

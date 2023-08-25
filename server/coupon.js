@@ -47,11 +47,12 @@ const COUPON = {
         connection.query(sqlQuery, [couponCode, '0'], (err, results) => {
             if (err) throw err;
             console.log('Coupon added to database')
+            return couponCode;
         })
     }
 }
 
-// COUPON.generate();
+COUPON.generate();
 
 
 module.exports = COUPON;
