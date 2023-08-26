@@ -39,7 +39,7 @@ const COUPON = {
             }, 2000)
         })
     },
-    generate: async () => {
+    generate: async (request, response, next) => {
         console.log('Waiting For Coupon Code.')
         const couponCode = await COUPON.getCoupon();
         console.log(couponCode);
@@ -47,12 +47,12 @@ const COUPON = {
         connection.query(sqlQuery, [couponCode, '0'], (err, results) => {
             if (err) throw err;
             console.log('Coupon added to database')
-            return couponCode;
         })
+        return couponCode;
     }
 }
 
-COUPON.generate();
+// COUPON.generate(); // uncomment this to generate coupon
 
 
 module.exports = COUPON;

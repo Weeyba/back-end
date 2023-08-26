@@ -12,8 +12,6 @@ const GENERATOR = require('./coupon')
 const mailer = require('nodemailer');
 const multer = require('multer');
 const fs = require('fs');
-const Admin = require('./admin');
-const COUPON = require('./coupon');
 
 const storage = multer.diskStorage({
     destination: function (request, file, cb) {
@@ -45,7 +43,7 @@ const FUNCTIONS = {
         }
         try {
             const decodedToken = jwt.verify(token, secretKey);
-            request,user =- decodedToken;
+            request.user =- decodedToken;
             next()
         }
         catch (error) {
@@ -94,7 +92,7 @@ App.get('/', (request, response) => {
 })
 
 App.get('/sign', (request, response) => {
-    response.sendFile(__dirname + '/signin.html')
+    response.sendFile(__dirname + '/public/signin.html')
 })
 
 App.post("/signup", (request, response, next) => {
@@ -176,7 +174,7 @@ return newData
 }
 )
 App.get('/login', (request, response) => {
-    response.sendFile(__dirname + '/login.html')
+    response.sendFile(__dirname + '/public/login.html')
 })
 
 App.post('/profile', async (request, response, next) => {
@@ -245,7 +243,7 @@ App.post('/profile', async (request, response, next) => {
 
 
 App.get('/admin', (request, response) => {
-    response.sendFile(__dirname + '/admin.html')
+    response.sendFile(__dirname + '/public/admin.html')
 })
 
 App.post('/admin/dashboard', (request, response) => {
@@ -282,7 +280,7 @@ process.on('SIGINT', () => {
 })
 
 App.get('/forgot', (request, response) => {
-  response.sendFile(__dirname + '/forgotEmail.html');  
+  response.sendFile(__dirname + '/public/forgotEmail.html');  
 })
 
 App.post('/token-sent', FUNCTIONS.generatePassToken, (request, response) => {   
@@ -301,13 +299,13 @@ App.post('/token-sent', FUNCTIONS.generatePassToken, (request, response) => {
         if (insertErr) throw insertErr;
         // if (insertResult.length > 0) {
         //     console.log('Credentials Added: ', insertResult);
-        //     response.sendFile(__dirname + '/verification.html')
+        //     response.sendFile(__dirname + '/public/verification.html')
         // }
         console.log(insertResult);
-        response.sendFile(__dirname + '/verification.html')
+        response.sendFile(__dirname + '/public/verification.html')
     })
 })
-App.get('/reset_password', (request, response) => {response.sendFile(__dirname + '/reset.html')})
+App.get('/reset_password', (request, response) => {response.sendFile(__dirname + '/public/reset.html')})
 App.post('/updateForm', (request, response) => {
     let ReceivedToken = request.body.token;
     let codeQuery = 'SELECT * FROM verify WHERE token = ?'
@@ -344,7 +342,7 @@ App.post('/reset', (request, response) => {
 
 
 App.get('/update', (request,response) => {
-    response.sendFile(__dirname + '/updatePass.html')
+    response.sendFile(__dirname + '/public/updatePass.html')
 })
 
 // Endpoints for updatig password 
@@ -365,7 +363,7 @@ App.post('/updatePassword', (request, response) => {
         }
     })
 })
-App.get('/withdraw', (request, response) => {response.sendFile(__dirname + '/withdraw.html')})
+App.get('/withdraw', (request, response) => {response.sendFile(__dirname + '/public/withdraw.html')})
 
 App.post('/ActivityWithdraw', (request, response, next) => {
     let email = request.body.email,
@@ -481,7 +479,7 @@ App.get('/get-all-affiliate-withdraw', (request, response) => {
 })
 
 App.get('/get_comment', (request, response) => {
-    response.sendFile(__dirname + '/comment.html');
+    response.sendFile(__dirname + '/public/comment.html');
 })
 
 App.post('/upload', upload.single('image'), (request, response) => {
@@ -491,7 +489,7 @@ App.post('/upload', upload.single('image'), (request, response) => {
 
   
     const sql = 'INSERT INTO uploaded_files (username, originalname, filename, size, linktext) VALUES (?, ?, ?, ?, ?)';
-    const values = [username, originalname, __dirname + '/uploads/' + filename, size, linktext];
+    const values = [username, originalname, __dirname + '/public/uploads/' + filename, size, linktext];
   
     connection.query(sql, values, (err, result) => {
       if (err) {
