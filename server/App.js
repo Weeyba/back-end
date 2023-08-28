@@ -5,13 +5,21 @@ const connection = require('./database');
 var BodyParser = require('body-parser');
 const path = require('path')
 const html = require('./htmlRender');
-const http = require('http');
+const https = require('http');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken')
 const GENERATOR = require('./coupon')
 const mailer = require('nodemailer');
 const multer = require('multer');
 const fs = require('fs');
+const httpsKey = fs.readFileSync(path.join(__dirname, 'keysFolder', process.env.KEY));
+const cert = fs.readFileSync(path.join(__dirname, 'keysFolder', process.env.CERT));
+
+const options = {
+  key: httpsKey,
+  cert: cert
+};
+
 
 const storage = multer.diskStorage({
     destination: function (request, file, cb) {
@@ -86,6 +94,7 @@ connection.connect((err) => {
  }
 });
 
+const server = https.createServer(options, App);
 
 App.get('/', (request, response) => {
     response.send(html.Render('Welcome To Weyba', 'sign', 'Sign Up'))
@@ -306,6 +315,7 @@ App.post('/token-sent', FUNCTIONS.generatePassToken, (request, response) => {
     })
 })
 App.get('/reset_password', (request, response) => {response.sendFile(__dirname + '/public/reset.html')})
+
 App.post('/updateForm', (request, response) => {
     let ReceivedToken = request.body.token;
     let codeQuery = 'SELECT * FROM verify WHERE token = ?'
@@ -556,6 +566,6 @@ App.post('/upload', upload.single('image'), (request, response) => {
     })
   })
 
-App.listen(5000, () => {
+server.listen(5000, () => {
     console.log('App is starting at localhost: 5000')
 })
