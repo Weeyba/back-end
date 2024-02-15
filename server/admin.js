@@ -8,7 +8,7 @@ const Admin = {
             const varDb = result[0].totals;
             console.log(`Total number of ${param}`, varDb)
             console.log(result)
-            return varDb;
+            return varDb
         })
     },
     getSum: (column, args, table) => {
@@ -38,9 +38,9 @@ const Admin = {
 
 
 
-
-Admin.getTotalUsers('totalCoupons', 'coupons', 'coupon');
-Admin.getSum('ActivityBalance', 'Activity Balance', 'userdata');
-Admin.getSum('AffiliateBalance', 'Affiliate Balance', 'userdata')
+// Admin.getTotalUsers('totalUsers', 'userdata', 'users')
+// Admin.getTotalUsers('totalCoupons', 'coupons', 'coupon');
+// Admin.getSum('ActivityBalance', 'Activity Balance', 'userdata');
+// Admin.getSum('AffiliateBalance', 'Affiliate Balance', 'userdata')
 
 module.exports = Admin;

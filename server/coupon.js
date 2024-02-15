@@ -39,17 +39,17 @@ const COUPON = {
             }, 2000)
         })
     },
-    generate: async (request, response, next) => {
-        console.log('Waiting For Coupon Code.')
-        const couponCode = await COUPON.getCoupon();
-        console.log(couponCode);
-        let sqlQuery = 'INSERT INTO coupons (coupon, Status) VALUES (?, ?)';
-        connection.query(sqlQuery, [couponCode, '0'], (err, results) => {
-            if (err) throw err;
-            console.log('Coupon added to database')
-        })
-        return couponCode;
-    }
+generate: async (request, response, next) => {
+    console.log('Waiting For Coupon Code.')
+    const couponCode = await COUPON.getCoupon();
+    console.log(couponCode);
+    let sqlQuery = 'INSERT INTO coupons (coupon, Status) VALUES (?, ?)';
+    connection.query(sqlQuery, [couponCode, '0'], (err, results) => {
+        if (err) throw err;
+        console.log('Coupon added to database')
+    });
+}
+
 }
 
 // COUPON.generate(); // uncomment this to generate coupon

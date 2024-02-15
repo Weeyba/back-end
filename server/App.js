@@ -1,25 +1,19 @@
 const express = require('express');
+const http = require('http');
+const PORT = 3000;
 const App = express();
+const server = http.createServer(App);
+const fs = require('fs');
 require("dotenv").config();
 const connection = require('./database');
-var BodyParser = require('body-parser');
 const path = require('path')
+var BodyParser = require('body-parser');
 const html = require('./htmlRender');
-const https = require('http');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken')
 const GENERATOR = require('./coupon')
 const mailer = require('nodemailer');
 const multer = require('multer');
-const fs = require('fs');
-const httpsKey = fs.readFileSync(path.join(__dirname, 'keysFolder', process.env.KEY));
-const cert = fs.readFileSync(path.join(__dirname, 'keysFolder', process.env.CERT));
-
-const options = {
-  key: httpsKey,
-  cert: cert
-};
-
 
 const storage = multer.diskStorage({
     destination: function (request, file, cb) {
@@ -44,40 +38,82 @@ const MailTransporter = mailer.createTransport({
 });
 
 const FUNCTIONS = {
-    verifyJwtToken: (request, response, next) => {
-        const token = request.headers.authorization?.split(' ')[1];
-        if(!token) {
-            return response.status(401).json({ message: 'Missing Token' })
-        }
-        try {
-            const decodedToken = jwt.verify(token, secretKey);
-            request.user =- decodedToken;
-            next()
-        }
-        catch (error) {
-            return response.status(401).json({ message: 'Invalid token' })
-        }
-    },
     key: () => {
-        let codeOne = GENERATOR.getRandom(10030400, 90049200),
-            letterCode = GENERATOR.getRandomLetters().generatedLetter,
-            codeTwo = GENERATOR.getRandom(1500, 5300),
-            KEYONE = `WEY${codeOne}BAWEY${letterCode}BA`,
-            KEYTWO = `KEY${codeTwo}1WEY${letterCode}KEYWEEYBA`,
-            secretKey = `${KEYONE}${KEYTWO}`;
-    
-        console.log(secretKey)
-        return secretKey
+        let codeOne = GENERATOR.getRandom(10030400, 90049200);
+        let letterCode = GENERATOR.getRandomLetters().generatedLetter;
+        let codeTwo = GENERATOR.getRandom(1500, 5300);
+        let KEYONE = `WEY${codeOne}BAWEY${letterCode}BA`;
+        let KEYTWO = `KEY${codeTwo}1WEY${letterCode}KEYWEEYBA`;
+        let secretKey = `${KEYONE}${KEYTWO}`;
+
+        console.log(secretKey);
+        return secretKey;
     },
     generatePassToken: (request, response, next) => {
         const code = () => {
-        var verificationCode = GENERATOR.getRandom(150000, 200100);
-        return verificationCode;
-        }
+            var verificationCode = GENERATOR.getRandom(150000, 200100);
+            return verificationCode;
+        };
         request.passToken = code();
+        next();
+    },
+    generateCoupon: async (request, response, next) => {
+        console.log('Waiting For Coupon Code.')
+        const couponCode = await GENERATOR.getCoupon();
+        console.log(couponCode);
+        let sqlQuery = 'INSERT INTO coupons (coupon, Status) VALUES (?, ?)';
+        connection.query(sqlQuery, [couponCode, '0'], (err, results) => {
+            if (err) throw err;
+            console.log('Coupon added to database')
+        });
+        request.generatedCoupon = couponCode;
         next()
     },
-}
+    getTotalUsers: (request, response, next) => {
+        var getQuery = `SELECT COUNT(*) AS totals FROM userdata`;
+        connection.query(getQuery, (err, result) => {
+            if (err) throw err;
+            const varDb = result[0].totals;
+            console.log(`Total number of users: `, varDb)
+            console.log(result)
+            request.totalUserCount = varDb;
+            next()
+        })
+    },
+    getTotalCoupon: (request, response, next) => {
+        var getQuery = `SELECT COUNT(*) AS totals FROM coupons`;
+        connection.query(getQuery, (err, result) => {
+            if (err) throw err;
+            const varDb = result[0].totals;
+            console.log(`Total number of coupons: `, varDb)
+            console.log(result)
+            request.totalCoupon = varDb;
+            next()
+        })
+    },
+    getSumActivity: (request, response, next) => {
+        var sumQuery = `SELECT SUM(ActivityBalance) AS totalCount FROM userdata`
+        connection.query(sumQuery, (sumErr, sumResult) => {
+            if (sumErr) throw sumErr
+            let countDb = sumResult[0].totalCount
+            console.log(`Total Sum for Activity Balance: `, countDb)
+            console.log(sumResult);
+            request.ActivityBalance = countDb;
+            next()
+        })
+    },
+    getSumAffiliate: (request, response, next) => {
+        var sumQuery = `SELECT SUM(AffiliateBalance) AS totalCount FROM userdata`
+        connection.query(sumQuery, (sumErr, sumResult) => {
+            if (sumErr) throw sumErr
+            let countDb = sumResult[0].totalCount
+            console.log(`Total Sum for Affiliate Balance: `, countDb)
+            console.log(sumResult);
+            request.AffiliateBalance = countDb;
+            next()
+        })
+    }
+};
 
 
 const secretKey = FUNCTIONS.key();
@@ -93,16 +129,6 @@ connection.connect((err) => {
     console.log('Connected to MySQL database');
  }
 });
-
-const server = https.createServer(options, App);
-
-App.get('/', (request, response) => {
-    response.send(html.Render('Welcome To Weyba', 'sign', 'Sign Up'))
-})
-
-App.get('/sign', (request, response) => {
-    response.sendFile(__dirname + '/public/signin.html')
-})
 
 App.post("/signup", (request, response, next) => {
     const newData = {
@@ -175,6 +201,7 @@ async function SQLINSERT() {
     connection.query(insertQuery, newData, (err, result) => {
         if (err) throw err;
               console.log('Data added succesfully')
+            //   const { firstname, lastname, email,  } = result
               response.send(result)
             })
 }
@@ -225,26 +252,29 @@ App.post('/profile', async (request, response, next) => {
             connection.query(sql, [email, pass], (err, results) => {
                 if (err) {
                     console.error('Error executing the SELECT query:', err);
+                    response.send('error verifyimg date')
                     throw err;
                 } else {
                     // Process the results returned from the database
                     console.log('Data logged in');
                     connection.query(balanceAdder, [toAdd, date, email], (err, result) => {
                         if (err) throw err;
-                        console.log('Successful adding...', result);
+                        const  { id, firstname, lastname, email, phone, password, username, coupon, referal, ActivityBalanceAffiliateBalance,accountNumber, accountName, bank} = results;
+                        console.log('Successful adding...', results);
+                        response.send('Succesfully')
                     });
                     const token = jwt.sign({ email }, secretKey, { expiresIn: '1h' });
                     console.log('Full user detaiils ', results);
-                    response.json({ token, user: results[0]});
+                    response.json({ token, user: results });
                 }
             });
         } 
         else {
-           connection.query(sql, [email, pass], (err, result) => {
+          connection.query(sql, [email, pass], (err, result) => {
             if (err) throw err;
                 console.log('Didnt touch database', result)
                 response.send(result);
-           })
+          })
         }
     }
     UserLogin();
@@ -264,7 +294,7 @@ App.post('/admin/dashboard', (request, response) => {
             if (result.length > 0) {
                 console.log(result);
             console.log('Logged in: ', result)
-            const token = jwt.sign({ email }, secretKey, { expiresIn: '1h' });
+            const token = jwt.sign({ username }, secretKey, { expiresIn: '1h' });
             response.json({ JWT: token, user: result })
             }
             else {
@@ -390,10 +420,11 @@ App.post('/ActivityWithdraw', (request, response, next) => {
                     }
                     else {
                         console.log('Error gettin username')
+                        response.send('Error getting username or email. Please check your credentials')
                     }
     
             })
-       }, 2000)
+      }, 2000)
     
         })
         async function ActivityTransferData() {
@@ -407,7 +438,7 @@ App.post('/ActivityWithdraw', (request, response, next) => {
                 AccountName: `${result[0].accountName}`,
                 Bank: `${result[0].bank}`
             }
-           if (Number(newData.RequestedAmount) <= Number(newData.ActivityBalance) && Number(newData.RequestedAmount) >= Number(ActivityWithdrawalthreshold)) {
+          if (Number(newData.RequestedAmount) <= Number(newData.ActivityBalance) && Number(newData.RequestedAmount) >= Number(ActivityWithdrawalthreshold)) {
             const dataQuery = 'INSERT INTO withdrawal SET ?';
             connection.query(dataQuery, newData, (err, result) => {
                 if (err) throw err;
@@ -416,8 +447,8 @@ App.post('/ActivityWithdraw', (request, response, next) => {
             })
         }
         else {
-               response.json({ message: 'User Balance is lower that requested amount' });
-           }
+              response.json({ message: 'User Balance is lower that requested amount' });
+          }
         }
         ActivityTransferData()
 })
@@ -440,7 +471,7 @@ App.post('/Affiliatewithdrawal', (request, response) => {
                 }
 
         })
-   }, 2000)
+  }, 2000)
 
     })
     //for affiliate
@@ -456,7 +487,7 @@ App.post('/Affiliatewithdrawal', (request, response) => {
             AccountName: `${result[0].accountName}`,
             Bank: `${result[0].bank}`
         }
-       if (Number(newData.RequestedAmount) <= Number(newData.AffiliateBalance) && Number(newData.RequestedAmount) >= Number(AffiliateWithdrawalthreshold)) {
+      if (Number(newData.RequestedAmount) <= Number(newData.AffiliateBalance) && Number(newData.RequestedAmount) >= Number(AffiliateWithdrawalthreshold)) {
         const dataQuery = 'INSERT INTO affiliatewithdrawal SET ?';
         connection.query(dataQuery, newData, (err, result) => {
             if (err) throw err;
@@ -465,8 +496,8 @@ App.post('/Affiliatewithdrawal', (request, response) => {
         })
     }
     else {
-           response.json({ message: 'User Balance is lower that requested amount' });
-       }
+          response.json({ message: 'User Balance is lower that requested amount' });
+      }
     }
     AffiliateTransferData()
 })
@@ -525,7 +556,7 @@ App.post('/upload', upload.single('image'), (request, response) => {
 
   App.get('/deletes', (request, response, next) => {
     const deleteQuery = ['DELETE FROM uploaded_files', 'DELETE FROM withdrawal', 'DELETE FROM affiliatewithdrawal']
-   deleteQuery.forEach((query) => {
+  deleteQuery.forEach((query) => {
     connection.query(query, (err) => {
         if (err) {
             console.log('Error deleting data');
@@ -536,7 +567,7 @@ App.post('/upload', upload.single('image'), (request, response) => {
         }
         
     })
-   })
+  })
     next()
   }, 
   (request, response) => {
@@ -566,6 +597,31 @@ App.post('/upload', upload.single('image'), (request, response) => {
     })
   })
 
-server.listen(5000, () => {
-    console.log('App is starting at localhost: 5000')
+  App.get('/coupons', FUNCTIONS.generateCoupon, (request, response) => {
+      setTimeout(() => {
+        const coupons = request.generatedCoupon;
+            response.json({ couponCode: coupons} )
+      }, 4000)
 })
+
+App.get('/total-users', FUNCTIONS.getTotalUsers, (request, response) => {
+    let users = request.totalUserCount;
+    response.json({ TotalUsers: users})
+})
+App.get('/total-coupons', FUNCTIONS.getTotalCoupon, (request, response) => {
+    let TotalCoupon = request.totalCoupon;
+    response.json({ TotalCoupons: TotalCoupon})
+})
+
+App.get('/total-activity-balance', FUNCTIONS.getSumActivity, (request, response) => {
+    let totalActivityBalance = request.ActivityBalance;
+    response.json({ ActivityBalance: totalActivityBalance})
+})
+App.get('/total-affiliate-balance',FUNCTIONS.getSumAffiliate, (request, response) => {
+    let totalAffiliateBalance = request.AffiliateBalance;
+    response.json({ AffiliatesBalance: totalAffiliateBalance});
+})
+
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
